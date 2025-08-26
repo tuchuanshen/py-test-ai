@@ -5,97 +5,88 @@ import hashlib
 
 wx = WeChat()
 
-# test_dmx.py
-from langchain.llms import Tongyi
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.chains.question_answering import load_qa_chain
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.docstore.document import Document
-from dotenv import load_dotenv
 import os
+from typing import Optional
+from dotenv import load_dotenv
+from langchain_community.chat_models import ChatTongyi
+from langchain.memory import ConversationBufferMemory
+from langchain.agents import initialize_agent, AgentType
+from langchain.tools import BaseTool
+from langchain.callbacks import StdOutCallbackHandler
 
-# 加载 .env 文件
-load_dotenv("./../env")
+# 加载环境变量
+load_dotenv('./../.env')
 
-# 从环境变量获取API密钥
-QIAN_WEN_KEY = os.getenv("QIAN_WEN_KEY")
+# 获取千问API密钥
+dashscope_api_key = os.getenv("DASHSCOPE_API_KEY")
 
-# 验证API密钥是否存在
-if not QIAN_WEN_KEY:
-    raise ValueError("QIAN_WEN_KEY 未在 .env 文件中设置")
+# 初始化千问模型
+llm = ChatTongyi(
+    api_key=dashscope_api_key,
+    model="qwen-turbo"
+)
 
-# 设置API密钥
-os.environ["TONGYI_API_KEY"] = QIAN_WEN_KEY
-os.environ["DASHSCOPE_API_KEY"] = QIAN_WEN_KEY
+# 初始化对话记忆
+memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
-class QwenQAModel:
-    def __init__(self):
-        # 初始化千问大模型
-        self.llm = Tongyi(
-            model_name="qwen-turbo",  # 或者使用 qwen-turbo, qwen-max 等
-            temperature=0.7,
-            max_tokens=2048
-        )
-        
-        # 创建问答提示模板
-        self.qa_template = """
-        你是一个智能问答助手,情感调节师，别人无论如何，让他保持好心情。        
-        """
-        
-        self.prompt = PromptTemplate(
-            template=self.qa_template,
-            input_variables=[ "question"]
-        )
-        
-        # 创建问答链
-        self.qa_chain = LLMChain(llm=self.llm, prompt=self.prompt)
-    
-    def answer_question(self, question: str, context: str = ""):
-        """
-        基于给定上下文回答问题
-        
-        Args:
-            question (str): 用户问题
-            context (str): 上下文信息
+class CalculatorTool(BaseTool):
+    """计算器工具，用于执行简单的数学计算"""
+    name: str = "calculator_tool"
+    description: str = "用于执行简单的数学计算，如加减乘除运算。当用户询问数学计算问题时使用此工具。"
+
+    def _run(self, query: str) -> str:
+        try:
+            # 简单的安全计算实现
+            # 移除可能的危险字符，只保留数字和基本运算符
+            allowed_chars = set('0123456789+-*/(). ')
+            cleaned_query = ''.join(c for c in query if c in allowed_chars)
             
-        Returns:
-            str: 模型回答
-        """
-        response = self.qa_chain.run({
-            "question": question
-        })
-        return response
+            # 计算结果
+            result = eval(cleaned_query)
+            return f"{query} = {result}"
+        except Exception as e:
+            return f"计算出错: {str(e)}"
 
-def interactive_qa_loop(input_text):
-    """
-    交互式问答循环
-    """
-    global qa_model 
-    
-    answer = qa_model.answer_question(input_text)
-    return answer
+class DateTimeTool(BaseTool):
+    """日期时间工具，用于获取当前日期和时间"""
+    name: str = "datetime_tool"
+    description: str = "用于获取当前日期和时间信息。当用户询问当前时间或日期时使用此工具。"
 
-# 用于跟踪已发送消息的集合，存储消息内容和时间戳的组合
-sent_messages = set()
-qa_model = QwenQAModel()
+    def _run(self, query: str) -> str:
+        from datetime import datetime
+        now = datetime.now()
+        return f"当前日期和时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')}"
 
-def generate_message_id(content, timestamp):
-    """生成消息的唯一标识"""
-    return hashlib.md5(f"{content}_{timestamp}".encode()).hexdigest()
+# 初始化工具列表
+tools = [
+    CalculatorTool(),
+    DateTimeTool()
+]
+
+# 初始化Agent
+agent = initialize_agent(
+    tools,
+    llm,
+    agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+    memory=memory,
+    verbose=True,
+    handle_parsing_errors=True
+)
 
 def on_message(msg, chat):
+    wx.RemoveListenChat(chat.who, False)
     print(f"收到来自 {chat.who} 的消息: {msg.content}")
     
     # 回复消息
-    reply_content = interactive_qa_loop(msg.content)
-    print(f"回复给 {chat.who} 的消息: {reply_content}")
-    
-    
-    time.sleep(2)
-    chat.SendMsg(reply_content)
+    reply_content = agent.run(msg.content)
+    print(f"\n千问回答: {reply_content}")
+    time.sleep(1)
+    chat.SendMsg(f"亲爱的宝，{reply_content}")
+    time.sleep(0.1)
+    wx.AddListenChat(nickname="苗秋秋[爱心]", callback=on_message)
 
-wx.AddListenChat(nickname="沈圳", callback=on_message)
+wx.AddListenChat(nickname="苗秋秋[爱心]", callback=on_message)
+wx.AddListenChat(nickname="沈圳、沈学年、苗秋秋[爱心]", callback=on_message)
 
 # 保持程序运行
 wx.KeepRunning()
