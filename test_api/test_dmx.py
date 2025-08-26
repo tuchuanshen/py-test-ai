@@ -26,7 +26,7 @@ class QwenQAModel:
     def __init__(self):
         # 初始化千问大模型
         self.llm = Tongyi(
-            model_name="qwen-plus",  # 或者使用 qwen-turbo, qwen-max 等
+            model_name="qwen-turbo",  # 或者使用 qwen-turbo, qwen-max 等
             temperature=0.7,
             max_tokens=2048
         )

@@ -6,3 +6,4 @@ pip install "langserve[all]"
 pip install langchain-cli
 pip install langsmith
 pip install wxauto
+pip install dashscope

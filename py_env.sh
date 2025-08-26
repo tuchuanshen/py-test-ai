@@ -12,3 +12,4 @@ $PIP_CMD install "langserve[all]"
 $PIP_CMD install langchain-cli
 $PIP_CMD install langsmith
 $PIP_CMD install wxauto
+$PIP_CMD install dashscope
