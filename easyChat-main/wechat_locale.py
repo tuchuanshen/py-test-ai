@@ -28,6 +28,7 @@ class WeChatLocale:
         "chat_history": {"en-US": "Chat History",   "zh-CN": "聊天记录",        "zh-TW": "聊天記錄"},
         "photos_n_videos":  {"en-US": "Photos & Videos", "zh-CN": "图片与视频", "zh-TW": "圖片與影片"},
         "copy":      {"en-US": "Copy",              "zh-CN": "复制",            "zh-TW": "複製"},
+        "close":      {"en-US": "Close",              "zh-CN": "关闭",            "zh-TW": "关闭"},
     }
 
     """
