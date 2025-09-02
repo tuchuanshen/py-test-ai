@@ -1,200 +1,114 @@
-# test_dmx.py
-from langchain.llms import Tongyi
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain.chains.question_answering import load_qa_chain
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.docstore.document import Document
-from dotenv import load_dotenv
-import os
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import START, MessagesState, StateGraph
+from langchain.schema import HumanMessage, SystemMessage
+from langchain_community.chat_models import ChatOpenAI
 
-# 加载 .env 文件
-load_dotenv()
+llm = ChatOpenAI(
+    base_url="http://127.0.0.1:8080/v1",
+    api_key="sk-my-local-key-12345",
+    temperature=0.7,
+    max_tokens=1000
+)
 
-# 从环境变量获取API密钥
-QIAN_WEN_KEY = os.getenv("QIAN_WEN_KEY")
+#持久记忆对话
+def memory_talk():
+    # Define the function that calls the model
+    def call_model(state: MessagesState):
+        print(state["messages"])
+        response = llm.invoke(state["messages"])
+        print(response)
+        return {"messages": response}
 
-# 验证API密钥是否存在
-if not QIAN_WEN_KEY:
-    raise ValueError("QIAN_WEN_KEY 未在 .env 文件中设置")
+    # Define a new graph
+    workflow = StateGraph(state_schema=MessagesState)
+    # Define the (single) node in the graph
+    workflow.add_edge(START, "model")
+    workflow.add_node("model", call_model)
 
-# 设置API密钥
-os.environ["TONGYI_API_KEY"] = QIAN_WEN_KEY
-os.environ["DASHSCOPE_API_KEY"] = QIAN_WEN_KEY
+    # Add memory
+    memory = MemorySaver()
+    app = workflow.compile(checkpointer=memory)
 
-class QwenQAModel:
-    def __init__(self):
-        # 初始化千问大模型
-        self.llm = Tongyi(
-            model_name="qwen-turbo",  # 或者使用 qwen-turbo, qwen-max 等
-            temperature=0.7,
-            max_tokens=2048
-        )
-        
-        # 创建问答提示模板
-        self.qa_template = """
-        你是一个智能问答助手。请根据以下提供的上下文信息回答问题。
-        如果上下文信息不足以回答问题，请说明无法基于提供的信息回答该问题。
-        
-        上下文信息：
-        {context}
-        
-        问题：{question}
-        
-        回答：
-        """
-        
-        self.prompt = PromptTemplate(
-            template=self.qa_template,
-            input_variables=["context", "question"]
-        )
-        
-        # 创建问答链
-        self.qa_chain = LLMChain(llm=self.llm, prompt=self.prompt)
-    
-    def answer_question(self, question: str, context: str = ""):
-        """
-        基于给定上下文回答问题
-        
-        Args:
-            question (str): 用户问题
-            context (str): 上下文信息
-            
-        Returns:
-            str: 模型回答
-        """
-        response = self.qa_chain.run({
-            "context": context,
-            "question": question
-        })
-        return response
-    
-    def answer_question_with_docs(self, question: str, documents):
-        """
-        使用文档列表进行问答
-        
-        Args:
-            question (str): 用户问题
-            documents: 文档列表
-            
-        Returns:
-            str: 模型回答
-        """
-        chain = load_qa_chain(self.llm, chain_type="stuff")
-        response = chain.run(input_documents=documents, question=question)
-        return response
+    config = {"configurable": {"thread_id": "abc123"}}
 
-def interactive_qa_loop():
-    """
-    交互式问答循环
-    """
-    # 初始化模型
-    qa_model = QwenQAModel()
-    
-    print("=== 基于千问的智能问答系统 ===")
-    print("输入 'quit' 或 'exit' 退出程序")
-    print("输入 'docs' 进入文档问答模式")
-    print("-" * 40)
-    
-    # 预设文档用于文档问答模式
-    docs = [
-        Document(page_content="阿里巴巴集团成立于1999年，由马云和他的团队在杭州创立。"),
-        Document(page_content="阿里巴巴的主要业务包括电子商务、云计算、数字媒体及娱乐等。"),
-        Document(page_content="阿里巴巴于2014年在纽约证券交易所上市。"),
-        Document(page_content="人工智能是计算机科学的一个分支，它企图了解智能的实质，并生产出一种新的能以人类智能相似的方式做出反应的智能机器。")
-    ]
-    
-    mode = "normal"  # normal 或 docs
-    
+
     while True:
-        try:
-            if mode == "normal":
-                user_input = input("\n请输入问题 (输入 'docs' 切换到文档问答模式, 'quit' 退出): ")
-            else:
-                user_input = input("\n请输入问题 (输入 'normal' 切换到普通问答模式, 'quit' 退出): ")
-            
-            # 检查退出命令
-            if user_input.lower() in ['quit', 'exit']:
-                print("感谢使用，再见！")
-                break
-            
-            # 检查模式切换命令
-            if user_input.lower() == 'docs':
-                mode = "docs"
-                print("已切换到文档问答模式")
-                continue
-            elif user_input.lower() == 'normal':
-                mode = "normal"
-                print("已切换到普通问答模式")
-                continue
-            
-            # 处理问题
-            if mode == "normal":
-                # 普通问答模式
-                answer = qa_model.answer_question(user_input)
-                print(f"\n回答: {answer}")
-            else:
-                # 文档问答模式
-                answer = qa_model.answer_question_with_docs(user_input, docs)
-                print(f"\n回答: {answer}")
-                
-        except KeyboardInterrupt:
-            print("\n\n程序被用户中断，再见！")
-            break
-        except Exception as e:
-            print(f"\n发生错误: {str(e)}")
-            print("请重试或联系管理员")
+        query = input("请输入：")
+        input_messages = [HumanMessage(query)]
+        output = app.invoke({"messages": input_messages}, config)
+        output["messages"][-1].pretty_print()  # output contains all messages in state
 
-def demo_qa_loop():
-    """
-    演示问答循环 - 预设几个问题进行演示
-    """
-    # 初始化模型
-    qa_model = QwenQAModel()
-    
-    # 预设文档
-    docs = [
-        Document(page_content="Python是一种高级编程语言，由Guido van Rossum于1991年首次发布。"),
-        Document(page_content="Python支持多种编程范式，包括面向对象、命令式、函数式和过程式编程。"),
-        Document(page_content="Python的语法简洁明了，具有良好的可读性，使得它成为初学者学习编程的首选语言之一。")
-    ]
-    
-    # 预设问题列表
-    questions = [
-        "什么是Python？",
-        "Python是由谁创建的？",
-        "为什么Python适合初学者？"
-    ]
-    
-    print("=== 演示问答循环 ===")
-    
-    # 普通问答演示
-    print("\n--- 普通问答演示 ---")
-    context = "Python是一种高级编程语言，具有简洁的语法和良好的可读性。"
-    for question in questions:
-        answer = qa_model.answer_question(question, context)
-        print(f"\n问题: {question}")
-        print(f"回答: {answer}")
-    
-    # 文档问答演示
-    print("\n--- 文档问答演示 ---")
-    for question in questions:
-        answer = qa_model.answer_question_with_docs(question, docs)
-        print(f"\n问题: {question}")
-        print(f"回答: {answer}")
 
-# 使用示例
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from typing import Sequence
+
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
+from typing_extensions import Annotated, TypedDict
+
+class State(TypedDict):
+    messages: Annotated[Sequence[BaseMessage], add_messages]
+    current_prompt: str
+
+def prompt_talk():
+    test_prompt = """
+    你是一个专职诗词章的助手，我给你任意题材，你都需要写出一首诗作答，不需要回答其他内容。
+    例如：春江花月夜
+    回答：春江潮水连海平，海上明月共潮生。
+        滟滟随波千万里，何处春江无月明。
+        江流宛转绕芳甸，月照花林皆似霰。
+        空里流霜不觉飞，汀上白沙看不见。
+        江天一色无纤尘，皎皎空中孤月轮。
+        江畔何人初见月？江月何年初照人？
+        人生代代无穷已，江月年年望相似。
+        不知江月待何人，但见长江送流水。
+        白云一片去悠悠，青枫浦上不胜愁。
+        谁家今夜扁舟子？何处相思明月楼？
+        可怜楼上月裴回，应照离人妆镜台。
+        玉户帘中卷不去，捣衣砧上拂还来。
+        此时相望不相闻，愿逐月华流照君。
+        鸿雁长飞光不度，鱼龙潜跃水成文。
+        昨夜闲潭梦落花，可怜春半不还家。
+        江水流春去欲尽，江潭落月复西斜。
+        斜月沉沉藏海雾，碣石潇湘无限路。
+        不知乘月几人归，落月摇情满江树。
+    """
+
+    prompt_template = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                "{current_prompt}",
+            ),
+            MessagesPlaceholder(variable_name="messages"),
+        ]
+    )
+    #workflow = StateGraph(state_schema=MessagesState)
+    workflow = StateGraph(state_schema=State)
+    def call_model(state: State):
+        prompt = prompt_template.invoke(state)
+        response = llm.invoke(prompt)
+        return {"messages": response}
+
+
+    workflow.add_edge(START, "model")
+    workflow.add_node("model", call_model)
+
+    memory = MemorySaver()
+    app = workflow.compile(checkpointer=memory)
+    config = {"configurable": {"thread_id": "1"}}
+    p_time = 0
+    while True:
+        query = input("\n请输入：")
+        input_messages = [HumanMessage(query)]
+        if p_time == 0:
+            p_time += 1
+            output = app.invoke({"messages": input_messages, "current_prompt":test_prompt}, config)
+        else:
+            output = app.invoke({"messages": input_messages}, config)
+        output["messages"][-1].pretty_print()  # output contains all messages in state
+
+
+
 if __name__ == "__main__":
-    print("请选择运行模式:")
-    print("1. 交互式问答 (实时输入问题)")
-    print("2. 演示问答 (预设问题回答)")
-    
-    choice = input("请输入选择 (1 或 2): ")
-    
-    if choice == "1":
-        interactive_qa_loop()
-    elif choice == "2":
-        demo_qa_loop()
-    else:
-        print("无效选择，运行交互式问答模式")
-        interactive_qa_loop()
+    prompt_talk()
