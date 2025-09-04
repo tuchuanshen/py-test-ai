@@ -14,6 +14,7 @@ from typing import Type, Optional
 from pydantic import Field, BaseModel
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 # 加载环境变量
 load_dotenv('./../.env')
@@ -60,52 +61,59 @@ class RAGTool(BaseTool):
 
     def _run(self, file_path: str, question: str) -> str:
         """执行RAG流程"""
-        try:
-            # 1. 加载文档
-            if not os.path.exists(file_path):
-                return f"错误：文件 {file_path} 不存在"
+        #file_path = r"C:\Users\tuchu\Documents\WXWork\1688856145533753\Cache\File\2025-09\关于大厦有害生物防治的通知.pdf"
+        #file_path = r"D:\tuchuan\workspace\xforward开发\调试脚本\问题.txt"
+        # 使用 pathlib 处理路径
+        query_path = file_path
+        file_path = Path(query_path)
+        print(f"检查文件路径: {file_path}")
+        print(f"文件是否存在: {file_path.exists()}")
 
-            loader = self._get_loader(file_path)
-            documents = loader.load()
+        if not file_path.exists():
+            return f"错误：文件 {file_path} 不存在"
 
-            # 2. 分割文本
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len,
-            )
-            texts = text_splitter.split_documents(documents)
+        # 确保文件是可读的
+        if not file_path.is_file():
+            return f"错误：{file_path} 不是一个有效的文件"
 
-            # 3. 创建向量嵌入
-            embeddings = HuggingFaceEmbeddings(
-                model_name="sentence-transformers/all-MiniLM-L6-v2")
+        loader = self._get_loader(file_path)
+        documents = loader.load()
 
-            # 4. 创建向量存储
-            vectorstore = Chroma.from_documents(
-                texts, embeddings, collection_name="rag_collection")
+        # 2. 分割文本
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len,
+        )
+        texts = text_splitter.split_documents(documents)
 
-            # 5. 创建检索器
-            retriever = vectorstore.as_retriever(search_type="similarity",
-                                                 search_kwargs={"k": 4})
+        # 3. 创建向量嵌入
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2")
 
-            # 6. 创建RAG链
-            llm = get_llm()
-            qa_chain = RetrievalQA.from_chain_type(
-                llm=llm,
-                chain_type="stuff",
-                retriever=retriever,
-                return_source_documents=True)
+        # 4. 创建向量存储
+        vectorstore = Chroma.from_documents(texts,
+                                            embeddings,
+                                            collection_name="rag_collection")
 
-            # 7. 执行问答
-            result = qa_chain({"query": question})
+        # 5. 创建检索器
+        retriever = vectorstore.as_retriever(search_type="similarity",
+                                             search_kwargs={"k": 4})
 
-            # 清理向量存储
-            vectorstore.delete_collection()
+        # 6. 创建RAG链
+        llm = get_llm()
+        qa_chain = RetrievalQA.from_chain_type(llm=llm,
+                                               chain_type="stuff",
+                                               retriever=retriever,
+                                               return_source_documents=True)
 
-            return result["result"]
+        # 7. 执行问答
+        result = qa_chain({"query": question})
 
-        except Exception as e:
-            return f"处理文件时出错: {str(e)}"
+        # 清理向量存储
+        vectorstore.delete_collection()
+
+        return result["result"]
 
 
 # 改进的提示模板
