@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# @File    : 强制解析策略配置.py
-# @Author  : yq.luan
-# @Date    : 2024-02-28
 
 from selenium.webdriver.common.by import By
 from basepage import BasePage
