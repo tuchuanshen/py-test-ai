@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-# @File    : 源IP段配置.py
-# @Author  : Gqinyuan
-# @Date    : 2022-11-10
 
 from selenium.webdriver.common.by import By
 from basepage import BasePage
