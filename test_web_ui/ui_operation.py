@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-# @Date    : 2022-03-29 15:10
-# @Email   : yq.luan@yamu.com
-# @Author  : lyq
-# @File    : __init__.py.py
-
 from selenium.webdriver.common.by import By
 
 from 基本配置 import 基本配置
