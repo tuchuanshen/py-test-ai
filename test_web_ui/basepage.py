@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-# @Date    : 2022-09-05 15:16
-# @Email   : yq.luan@yamu.com
-# @Author  : lyq
-# @File    : basepage.py
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select as SE
