@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select as SE
