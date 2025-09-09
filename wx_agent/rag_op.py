@@ -7,6 +7,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain.prompts import PromptTemplate
 from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferWindowMemory
 
 from langchain_community.document_loaders import (
     TextLoader, PDFMinerLoader, UnstructuredWordDocumentLoader,
@@ -17,7 +18,7 @@ from pydantic import Field, BaseModel
 import os, sys
 import json
 
-from local_llm import local_llm_get
+from local_llm import local_llm_get, get_llm
 from local_log import (LogLevel, debug_log, info_log, warning_log, error_log,
                        set_logger)
 
@@ -52,6 +53,9 @@ USER_PROMPTS = {
 USER_DOC_PATHS = {
     "default": r"D:\tuchuan\tc_test\py-test-ai\wx_agent",
 }
+
+# 对话历史记录的最大轮数
+MAX_HISTORY_LENGTH = 5
 
 
 def load_config():
@@ -169,13 +173,12 @@ def retriever_tool_get(dir_path, llm, prompt_type="default"):
     info_log(f"QA模型加载完成")
     return qa_chain
 
-
 def conversational_retriever_tool_get(dir_path, llm):
     """
     创建支持多轮对话的RAG系统
     """
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500,
-                                                   chunk_overlap=100,
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=100,
+                                                   chunk_overlap=10,
                                                    length_function=len)
     info_log(f"文档加载中...")
 
@@ -197,11 +200,13 @@ def conversational_retriever_tool_get(dir_path, llm):
 
     # 创建支持对话历史的Chain
     qa_chain = ConversationalRetrievalChain.from_llm(
-        llm=llm, retriever=retriever, return_source_documents=True)
+        llm=llm, 
+        retriever=retriever, 
+        return_source_documents=True,
+        verbose=True)
 
     info_log(f"对话式QA模型加载完成")
     return qa_chain
-
 
 # 添加工作流类来管理不同用户的RAG配置
 class RAGWorkflow:
@@ -210,6 +215,7 @@ class RAGWorkflow:
         self.llm = llm
         self.user_type = user_type  # 添加用户类型属性
         self.user_chains = {}
+        self.user_memories = {}  # 为每个用户存储对话历史
         # 加载配置文件
         load_config()
         self._init_user_chains()
@@ -218,47 +224,129 @@ class RAGWorkflow:
         """为不同用户初始化RAG链"""
         for user_type, doc_path in USER_DOC_PATHS.items():
             if os.path.exists(doc_path):
-                prompt_type = user_type
-                self.user_chains[user_type] = retriever_tool_get(
-                    doc_path, self.llm, prompt_type)
+                self.user_chains[user_type] = conversational_retriever_tool_get(
+                    doc_path, self.llm)
+                # 为每个用户初始化独立的对话记忆，使用滑动窗口机制限制历史记录数量
+                self.user_memories[user_type] = ConversationBufferWindowMemory(
+                    memory_key="chat_history", 
+                    return_messages=True,
+                    output_key='ai_answer',
+                    k=MAX_HISTORY_LENGTH)
 
     def get_response(self, query):
         """根据初始化时指定的用户类型获取响应"""
         if self.user_type in self.user_chains:
             chain = self.user_chains[self.user_type]
-            response = chain.invoke({"query": query})
+            memory = self.user_memories[self.user_type]
+            
+            # 获取对话历史
+            chat_history = memory.load_memory_variables({}).get("chat_history", [])
+            
+            response = chain.invoke({
+                "question": query,
+                "chat_history": chat_history
+            })
+            
+            # 保存对话历史
+            answer = response.get("answer", response.get("result", str(response)))
+            memory.save_context({"input": query}, {"ai_answer": answer})
+            
             return response
         else:
             # 使用默认链
             chain = self.user_chains.get("default")
-            if chain:
-                response = chain.invoke({"query": query})
+            memory = self.user_memories.get("default")
+            if chain and memory:
+                # 获取对话历史
+                chat_history = memory.load_memory_variables({}).get("chat_history", [])
+                
+                response = chain.invoke({
+                    "question": query,
+                    "chat_history": chat_history
+                })
+                
+                # 保存对话历史
+                answer = response.get("answer", response.get("result", str(response)))
+                memory.save_context({"input": query}, {"answer": answer})
+                
                 return response
             else:
-                return {"result": "未找到合适的问答链", "source_documents": []}
+                return {"answer": "未找到合适的问答链", "source_documents": []}
 
     def add_user_config(self, user_type, doc_path, prompt_type="default"):
         """动态添加用户配置"""
         if os.path.exists(doc_path):
-            self.user_chains[user_type] = retriever_tool_get(
-                doc_path, self.llm, prompt_type)
+            self.user_chains[user_type] = conversational_retriever_tool_get(
+                doc_path, self.llm)
+            # 为新用户初始化独立的对话记忆，使用滑动窗口机制限制历史记录数量
+            self.user_memories[user_type] = ConversationBufferWindowMemory(
+                memory_key="chat_history", 
+                return_messages=True,
+                output_key='answer',
+                k=MAX_HISTORY_LENGTH)
+
+    def clear_user_history(self, user_type=None):
+        """清空指定用户的对话历史，默认清空当前用户的历史"""
+        target_user = user_type if user_type else self.user_type
+        if target_user in self.user_memories:
+            self.user_memories[target_user].clear()
+            info_log(f"已清空用户 {target_user} 的对话历史")
+        else:
+            warning_log(f"未找到用户 {target_user} 的对话历史")
+
+    def get_history_length(self, user_type=None):
+        """获取指定用户的对话历史长度"""
+        target_user = user_type if user_type else self.user_type
+        if target_user in self.user_memories:
+            memory_variables = self.user_memories[target_user].load_memory_variables({})
+            chat_history = memory_variables.get("chat_history", [])
+            return len(chat_history)
+        else:
+            return 0
+
+    def set_max_history_length(self, max_length, user_type=None):
+        """动态设置用户的最大对话历史长度"""
+        global MAX_HISTORY_LENGTH
+        MAX_HISTORY_LENGTH = max_length
+        
+        target_user = user_type if user_type else self.user_type
+        if target_user in self.user_memories:
+            # 重新创建内存对象以应用新的窗口大小
+            old_memory = self.user_memories[target_user]
+            memory_variables = old_memory.load_memory_variables({})
+            chat_history = memory_variables.get("chat_history", [])
+            
+            # 创建新的滑动窗口内存对象
+            new_memory = ConversationBufferWindowMemory(
+                memory_key="chat_history",
+                return_messages=True,
+                output_key='answer',
+                k=MAX_HISTORY_LENGTH
+            )
+            
+            # 将旧的历史记录转移到新的内存对象中（如果超过新长度则只保留最新的）
+            self.user_memories[target_user] = new_memory
+            
+            info_log(f"已更新用户 {target_user} 的最大对话历史长度为 {max_length}")
+        else:
+            warning_log(f"未找到用户 {target_user} 的对话历史")
 
 
 def test_talk():
     set_logger(min_level=LogLevel.DEBUG)
-    llm = local_llm_get()
+    #llm = local_llm_get()
+    llm = get_llm()
     debug_log("local_llm_get ready", llm)
 
-    print("\n支持的用户类型: default, technical, business")
-    user_type = input("请输入用户类型（输入'退出'结束）：")
-    if user_type.lower() == '退出':
-        return
-
+    # print("\n支持的用户类型: default, technical, business")
+    # user_type = input("请输入用户类型（输入'退出'结束）：")
+    # if user_type.lower() == '退出':
+    #     return
+    user_type = "default"
     # 使用工作流方式，初始化时指定用户类型
     workflow = RAGWorkflow(llm, user_type)
 
     debug_log("RAG工作流准备就绪")
-    chat_history = []
 
     while True:
         query = input("请输入您的问题（输入'退出'结束）：")
@@ -266,15 +354,11 @@ def test_talk():
             break
 
         response = workflow.get_response(query)
-        print(f"回答: {response['result']}")
-
-        # 添加循环思考功能：允许用户基于回答继续提问
-        continue_chat = input("是否需要进一步了解？(y/n): ")
-        while continue_chat.lower() == 'y':
-            follow_up = input("请继续提问: ")
-            follow_up_response = workflow.get_response(follow_up)
-            print(f"回答: {follow_up_response['result']}")
-            continue_chat = input("是否需要进一步了解？(y/n): ")
+        print(f"回答: {response['answer']}")
+        
+        # 显示当前对话历史长度
+        history_length = workflow.get_history_length()
+        print(f"当前对话历史长度: {history_length}")
 
 
 if __name__ == "__main__":
