@@ -1,14 +1,12 @@
 from rag_op import retriever_tool_get
 from local_llm import local_llm_get
-#from wx_op import wx_start
-from local_log import (LogLevel, debug_log, set_logger)
+from ui_auto_wechat import WeChat
 
 from local_log import (LogLevel, debug_log, info_log, error_log, set_logger)
 import os, sys
 
 
 def test_talk():
-
     llm = local_llm_get()
     debug_log("local_llm_get ready", llm)
 
