@@ -112,7 +112,7 @@ class ListenerManager:
                         # 获取最近的消息（这里简单获取最近5条）
                         messages = self.wechat.get_dialogs(contact_name, 5)
                         if messages:
-                            handler(contact_name, messages)
+                            handler(self.wechat, contact_name, messages)
                     except Exception as e:
                         print(f"处理 {contact_name} 的消息时出错: {e}")
 
