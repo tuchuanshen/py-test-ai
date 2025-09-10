@@ -1,4 +1,5 @@
-from rag_op import retriever_tool_get,RAGWorkflow
+import re
+from rag_op import retriever_tool_get, RAGWorkflow
 from local_llm import local_llm_get, get_llm
 from wx_op import extract_user_messages
 from ui_auto_wechat import WeChat
@@ -6,17 +7,26 @@ from listener_manager import ListenerManager
 from local_log import (LogLevel, debug_log, info_log, error_log, set_logger)
 import os, sys, time
 
-def wx_msg_handler(wx_chat:WeChat, contact_name, messages):
-    print(f"[自动回复] 收到来自 {contact_name} 的消息:", messages)
-    
-    # 提取并打印用户发送的消息
-    user_messages = extract_user_messages(messages)
-    print("提取的用户消息:", user_messages)
-    wx_chat.send_msg(contact_name, text="hehele", search_user=True)
+
+def make_wx_msg_handler(workflow: RAGWorkflow):
+
+    def wx_msg_handler(wx_chat: WeChat, contact_name, messages):
+        print(f"[自动回复] 收到来自 {contact_name} 的消息:", messages)
+
+        # 提取并打印用户发送的消息
+        user_messages = extract_user_messages(messages)
+        print("提取的用户消息:", user_messages)
+        ai_resp = workflow.get_response(",".join(user_messages))["answer"]
+        print("[自动回复] 回复:", ai_resp)
+        wx_chat.send_msg(contact_name, text=ai_resp, search_user=True)
+        # wx_chat.press_close()
+
+    return wx_msg_handler
+
 
 def wx_auto_reply():
-    wechat_path = "D:\\Program Files (x86)\\Tencent\\WeChat\\WeChat.exe"
-    #wechat_path = "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe"
+    #wechat_path = "D:\\Program Files (x86)\\Tencent\\WeChat\\WeChat.exe"
+    wechat_path = "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe"
 
     # 初始化微信对象
     wechat = WeChat(wechat_path, locale="zh-CN")
@@ -26,13 +36,17 @@ def wx_auto_reply():
 
     # 1. 添加初始监听对象
     print("=== 添加初始监听对象 ===")
-    # 使用默认消息处理函数
-    listener_manager.add_listener("沈圳", wx_msg_handler)
-    listener_manager.start_global_listening(check_interval=5)
-    
-    set_logger(min_level=LogLevel.DEBUG)
+
     #llm = local_llm_get()
     llm = get_llm()
+    user_type = "default"
+    workflow = RAGWorkflow(llm, user_type)
+    my_handler = make_wx_msg_handler(workflow)
+    # 使用默认消息处理函数
+    listener_manager.add_listener("沈圳", my_handler)
+    listener_manager.start_global_listening(check_interval=5)
+
+    set_logger(min_level=LogLevel.DEBUG)
     while True:
         time.sleep(10)
 
