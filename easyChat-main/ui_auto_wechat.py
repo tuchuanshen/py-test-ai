@@ -468,6 +468,103 @@ class WeChat:
             if ori_cnt == cnt:
                 break
 
+    def check_new_msg_from_contact(self, contact_name):
+        """
+        检查特定联系人是否有新消息，并返回新消息内容
+        :param contact_name: 联系人名称
+        :return: (has_new_msg, messages) 
+                 has_new_msg: 布尔值，表示是否有新消息
+                 messages: 消息列表，每个元素为(消息类型, 发送者, 消息内容)的元组
+        """
+        self.open_wechat()
+        self.get_wechat()
+        
+        # 获取左侧聊天按钮
+        chat_btn = auto.ButtonControl(Name=self.lc.chats)
+        double_click(chat_btn)
+        
+        # 遍历所有聊天项
+        item = auto.ListItemControl(Depth=10)
+        prev_name = item.ButtonControl().Name
+        
+        while True:
+            # 检查是否是目标联系人
+            if item.ButtonControl().Name == contact_name:
+                pane_control = item.PaneControl()
+                # 判断是否有新消息（3个子控件表示有新消息）
+                if len(pane_control.GetChildren()) == 3:
+                    print(f"{contact_name} 有新消息")
+                    # 点击进入聊天界面
+                    click(item)
+                    # 获取新消息内容
+                    messages = self.get_new_messages(contact_name)
+                    return True, messages
+                else:
+                    #print(f"{contact_name} 没有新消息")
+                    return False, []
+            
+            click(item)
+            
+            # 跳转到下一个聊天项
+            double_click(chat_btn)
+            item = auto.ListItemControl(Depth=10)
+            
+            # 已经完成遍历，退出循环
+            if prev_name == item.ButtonControl().Name:
+                break
+            
+            prev_name = item.ButtonControl().Name
+        
+        #print(f"未找到联系人 {contact_name}")
+        return False, []
+
+    def get_new_messages(self, contact_name):
+        """
+        获取指定联系人的新消息
+        :param contact_name: 联系人名称
+        :return: 新消息列表
+        """
+        # 获取聊天窗口
+        list_control = auto.ListControl(Name=self.lc.message)
+        
+        # 查找"以下为新消息"标记
+        new_msg_flag = None
+        for item in list_control.GetChildren():
+            if "以下为新消息" in item.Name or "new messages" in item.Name.lower():
+                new_msg_flag = item
+                break
+        
+        # 如果找到新消息标记，获取标记后的所有消息
+        messages = []
+        if new_msg_flag:
+            # 从新消息标记后开始收集消息
+            collecting = False
+            for item in list_control.GetChildren():
+                if item == new_msg_flag:
+                    collecting = True
+                    continue
+                
+                if collecting:
+                    # 获取消息类型和内容
+                    msg_type = self._detect_type(item)
+                    content = item.Name
+                    sender = item.ButtonControl().Name if msg_type == 0 else ''
+                    value_to_info = {
+                        0: '用户发送',
+                        1: '时间信息',
+                        2: '红包信息',
+                        3: '"查看更多消息"标志',
+                        4: '撤回消息',
+                        5: "System Notification",
+                        6: '"以下是新消息"标志'
+                    }
+                    messages.append((value_to_info[msg_type], sender, content))
+        else:
+            # 如果没有找到新消息标记，返回最近的几条消息
+            messages = self.get_dialogs(contact_name, 5)
+            
+        return messages
+
     # 获取指定聊天窗口的聊天记录
     def get_dialogs(self,
                     name: str,

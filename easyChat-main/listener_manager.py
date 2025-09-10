@@ -100,9 +100,6 @@ class ListenerManager:
 
         while self.listening:
             try:
-                # 检查新消息
-                #self.wechat.check_new_msg()
-
                 # 为每个监听对象获取并处理消息
                 with self.listeners_lock:
                     listeners_copy = dict(self.listeners)
@@ -110,9 +107,9 @@ class ListenerManager:
                 for contact_name, handler in listeners_copy.items():
                     try:
                         # 获取最近的消息（这里简单获取最近5条）
-                        messages = self.wechat.get_dialogs(contact_name, 5)
+                        new_msg, messages = self.wechat.check_new_msg_from_contact(contact_name)
                         if messages:
-                            handler(self.wechat, contact_name, messages)
+                            handler(self.wechat, contact_name, new_msg, messages)
                     except Exception as e:
                         print(f"处理 {contact_name} 的消息时出错: {e}")
 
