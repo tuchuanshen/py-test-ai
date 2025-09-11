@@ -29,6 +29,7 @@ class WeChatLocale:
         "photos_n_videos":  {"en-US": "Photos & Videos", "zh-CN": "图片与视频", "zh-TW": "圖片與影片"},
         "copy":      {"en-US": "Copy",              "zh-CN": "复制",            "zh-TW": "複製"},
         "close":      {"en-US": "Close",              "zh-CN": "关闭",            "zh-TW": "关闭"},
+        "minimize":      {"en-US": "Minimize",              "zh-CN": "最小化",            "zh-TW": "最小化"},
     }
 
     """

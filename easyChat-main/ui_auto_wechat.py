@@ -145,7 +145,20 @@ class WeChat:
                     click(close_button)
                 else:
                     print(f"无法找到关闭按钮: {self.lc.close}")
+    def press_minimize(self):
+        # 获取微信窗口
+        wechat_window = self.get_wechat()
+        if not wechat_window.Exists():
+            print("无法找到微信窗口")
+            return
 
+        # 在微信窗口内获取关闭按钮
+        close_button = wechat_window.ButtonControl(Depth=5,
+                                                   Name=self.lc.minimize)
+        # 检查按钮是否存在
+        if close_button.Exists():
+            click(close_button)
+        
     def paste_text(self, text: str) -> None:
         """
         封装文本粘贴逻辑
@@ -514,7 +527,7 @@ class WeChat:
                 break
             
             prev_name = item.ButtonControl().Name
-        
+        self.press_minimize()
         #print(f"未找到联系人 {contact_name}")
         return False, []
 

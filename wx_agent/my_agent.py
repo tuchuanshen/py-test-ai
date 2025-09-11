@@ -6,6 +6,8 @@ from listener_manager import ListenerManager
 from local_log import (LogLevel, debug_log, info_log, error_log, set_logger)
 import os, sys, time
 from wx_op import extract_user_messages
+from ai_talk import create_chat_session
+from langchain_core.messages import HumanMessage
 
 
 def format_messages_as_dialogue(messages, username=None):
@@ -25,14 +27,14 @@ def format_messages_as_dialogue(messages, username=None):
         # 只处理用户发送的消息
         if msg_type == '用户发送' and sender and content:
             # 如果发送者是当前用户，显示为"你"
-            display_sender = "你" if username and sender == username else sender
+            display_sender = "我" if username and sender == username else sender
             dialogue_lines.append(f"{display_sender}：{content}")
         # 时间信息可以按需要处理，这里暂时忽略
     
     return "\n".join(dialogue_lines)
 
 
-def make_wx_msg_handler(workflow: RAGWorkflow):
+def make_wx_msg_handler(talk_ai):
 
     def wx_msg_handler(wx_chat: WeChat, contact_name, new_msg, messages):
         if new_msg:
@@ -43,16 +45,16 @@ def make_wx_msg_handler(workflow: RAGWorkflow):
         # 格式化为对话形式，将联系人名称显示为"你"
         dialogue = format_messages_as_dialogue(messages, username="土川啊")
         print(dialogue)
-        
+        ai_resp = talk_ai.chat(dialogue)
         #ai_resp = workflow.get_response(",".join(user_messages))["answer"]
-        #print("[自动回复] 回复:", ai_resp)
-        #wx_chat.send_msg(contact_name, text=ai_resp, search_user=True)
-        # wx_chat.press_close()
+        print("[自动回复] 回复:", ai_resp)
+        wx_chat.send_msg(contact_name, text=ai_resp, search_user=True)
+        wx_chat.press_minimize()
 
     return wx_msg_handler
 
 
-def wx_auto_reply():
+def wx_rag_reply():
     wechat_path = "D:\\Program Files (x86)\\Tencent\\WeChat\\WeChat.exe"
     #wechat_path = "C:\\Program Files\\Tencent\\WeChat\\WeChat.exe"
 
@@ -89,27 +91,26 @@ def wx_auto_reply():
     # debug_log("RAG工作流准备就绪")
 
 
-def test_talk():
-    llm = local_llm_get()
-    debug_log("local_llm_get ready", llm)
+def wx_prompt_talk():
+    talk_ai = create_chat_session()
+    
+    wechat_path = "D:\\Program Files (x86)\\Tencent\\WeChat\\WeChat.exe"
 
-    heart_talk = retriever_tool_get(r"D:\tuchuan\tc_test\py-test-ai\wx_agent",
-                                    llm)
+    # 初始化微信对象
+    wechat = WeChat(wechat_path, locale="zh-CN")
 
-    if heart_talk is None:
-        error_log("heart_talk 初始化失败")
-        return
+    # 初始化监听管理器
+    listener_manager = ListenerManager(wechat)
 
+    my_handler = make_wx_msg_handler(talk_ai)
+    # 使用默认消息处理函数
+    listener_manager.add_listener("沈圳", my_handler)
+    listener_manager.start_global_listening(check_interval=5)
+
+    set_logger(min_level=LogLevel.DEBUG)
     while True:
-        query = input("\n请输入您的问题（输入'退出'结束）：")
-        if query.lower() == '退出':
-            break
-        try:
-            response = heart_talk.invoke({"query": query})
-            print(f"回答: {response}")
-        except Exception as e:
-            error_log(f"问答过程中出错: {str(e)}")
+        time.sleep(10)
 
 
 if __name__ == "__main__":
-    wx_auto_reply()
+    wx_prompt_talk()
