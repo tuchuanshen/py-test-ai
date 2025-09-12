@@ -55,9 +55,48 @@ class RAGManager:
         Returns:
             RetrievalQA链
         """
-        # 这里需要根据实际文档加载方式实现
-        # 暂时返回一个空的RAG链
-        pass
+        # 实现文档加载和向量化
+        from langchain_community.document_loaders import TextLoader
+        
+        # 加载文档
+        loader = TextLoader(doc_path, encoding='utf-8')
+        documents = loader.load()
+        
+        # 文本分割
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, 
+            chunk_overlap=200
+        )
+        splits = text_splitter.split_documents(documents)
+        
+        # 创建向量存储
+        vectorstore = Chroma.from_documents(
+            documents=splits, 
+            embedding=self.embeddings
+        )
+        
+        # 创建检索链
+        retriever = vectorstore.as_retriever()
+        
+        # 定义提示模板
+        prompt = PromptTemplate.from_template("""
+        请根据以下上下文回答问题：
+        {context}
+        
+        问题：{query}
+        
+        回答：
+        """)
+        
+        # 创建RAG链
+        rag_chain = RetrievalQA.from_chain_type(
+            llm=None,  # 这里需要传入一个实际的LLM
+            chain_type="stuff",
+            retriever=retriever,
+            chain_type_kwargs={"prompt": prompt}
+        )
+        
+        return rag_chain
         
     def query(self, question: str, domain: str) -> Dict[str, Any]:
         """

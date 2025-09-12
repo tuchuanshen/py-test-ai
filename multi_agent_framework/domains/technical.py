@@ -78,8 +78,18 @@ class TechnicalRAG:
             )
             
             # 创建QA链
-            from local_llm import get_llm
-            llm = get_llm()
+            try:
+                from local_llm import get_llm
+                llm = get_llm()
+            except ImportError:
+                # 如果无法导入local_llm，则使用一个模拟的LLM
+                from langchain_community.chat_models import ChatOpenAI
+                llm = ChatOpenAI(
+                    base_url="http://127.0.0.1:8080/v1",
+                    api_key="sk-my-local-key-12345",
+                    temperature=0.7,
+                    max_tokens=1000
+                )
             
             self.rag_chain = RetrievalQA.from_chain_type(
                 llm=llm,

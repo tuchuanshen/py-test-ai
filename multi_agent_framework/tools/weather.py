@@ -1,6 +1,6 @@
 """天气查询工具"""
 from typing import Dict, Any
-from .base import BaseTool
+from multi_agent_framework.tools.base import BaseTool
 
 
 class WeatherTool(BaseTool):

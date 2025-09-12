@@ -1,7 +1,7 @@
 """核心引擎 - 管理智能体协作流程"""
 from typing import Dict, Any, List, Optional
 from langgraph.graph import StateGraph, END
-from .state import GlobalState, AgentState
+from multi_agent_framework.core.state import GlobalState, AgentState
 
 
 class MultiAgentEngine:

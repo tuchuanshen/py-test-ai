@@ -1,6 +1,6 @@
 """工具管理器"""
 from typing import Dict, Any, List
-from ..tools.base import BaseTool
+from multi_agent_framework.tools.base import BaseTool
 
 
 class ToolManager:

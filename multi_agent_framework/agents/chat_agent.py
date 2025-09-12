@@ -1,6 +1,6 @@
 """通用对话智能体"""
 from typing import Dict, Any
-from .base import BaseAgent
+from multi_agent_framework.agents.base import BaseAgent
 from langchain_core.messages import HumanMessage, AIMessage
 
 

@@ -1,6 +1,6 @@
 """质量检查反思器"""
 from typing import Dict, Any
-from .base import BaseReflector
+from multi_agent_framework.reflection.base import BaseReflector
 
 
 class QualityCheckerReflector(BaseReflector):
