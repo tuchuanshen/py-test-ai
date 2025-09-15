@@ -1,0 +1,21 @@
+{
+  "persist_directory": "./chroma_db",
+  "embeddings_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "default_domain": "technical",
+  "domains": {
+    "technical": {
+      "path": "D:\\tuchuan\\tc_test\\py-test-ai\\multi_agent_framework\\domains",
+      "description": "技术领域知识库"
+    }
+  },
+  "retriever": {
+    "search_type": "similarity",
+    "search_kwargs": {
+      "k": 4
+    }
+  },
+  "text_splitter": {
+    "chunk_size": 1000,
+    "chunk_overlap": 200
+  }
+}
