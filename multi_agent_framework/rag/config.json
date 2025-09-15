@@ -4,8 +4,12 @@
   "default_domain": "technical",
   "domains": {
     "technical": {
-      "path": "D:\\tuchuan\\tc_test\\py-test-ai\\multi_agent_framework\\domains",
+      "path": "D:\\tuchuan\\tc_test\\py-test-ai\\multi_agent_framework\\domains\\test",
       "description": "技术领域知识库"
+    },
+    "dns_professor": {
+      "path": "D:\\tuchuan\\tc_test\\py-test-ai\\multi_agent_framework\\domains\\dns",
+      "description": "dns相关技术领域知识库，包括域名、u10、corens、递归、强解等dns相关知识"
     }
   },
   "retriever": {

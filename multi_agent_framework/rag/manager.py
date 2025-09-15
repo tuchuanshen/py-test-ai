@@ -216,14 +216,13 @@ class RAGManager:
 
         # 创建RAG链 - 使用ConversationalRetrievalChain来支持ChatPromptTemplate
         from langchain.chains import ConversationalRetrievalChain
-        
+
         rag_chain = ConversationalRetrievalChain.from_llm(
             llm=self.llm,
             retriever=retriever,
             chain_type="stuff",
             condense_question_prompt=prompt,
-            return_source_documents=True
-        )
+            return_source_documents=True)
 
         return rag_chain
 
@@ -245,7 +244,7 @@ class RAGManager:
             查询结果
         """
         # 如果没有指定领域，则使用默认领域
-        if domain is None:
+        if domain is None or domain not in self.rag_chains:
             domain = self.config.get("default_domain", "technical")
 
         if domain not in self.rag_chains:
@@ -256,18 +255,18 @@ class RAGManager:
             }
 
         rag_chain = self.rag_chains[domain]
-        
+
         # 创建输入消息
         input_messages = [HumanMessage(content=question)]
-        
+
         # 合并question和kwargs作为输入
         input_data = {
-            "question": question, 
+            "question": question,
             "messages": input_messages,
             "chat_history": [],  # ConversationalRetrievalChain需要chat_history
             **kwargs
         }
-        
+
         # 如果提供了过滤器，则临时修改检索器
         if filter is not None:
             # 获取原始检索器的配置
@@ -278,8 +277,7 @@ class RAGManager:
 
             # 创建新的带过滤器的检索器
             new_retriever = original_retriever.vectorstore.as_retriever(
-                search_type=retriever_config.get("search_type",
-                                                 "similarity"),
+                search_type=retriever_config.get("search_type", "similarity"),
                 search_kwargs=search_kwargs)
 
             # 临时替换检索器
