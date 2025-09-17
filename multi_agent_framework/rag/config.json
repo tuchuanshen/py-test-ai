@@ -5,7 +5,7 @@
   "domains": {
     "technical": {
       "path": "D:\\tuchuan\\tc_test\\py-test-ai\\multi_agent_framework\\domains\\test",
-      "description": "技术领域知识库"
+      "description": "人工智能技术领域知识库"
     },
     "dns_professor": {
       "path": "D:\\tuchuan\\tc_test\\py-test-ai\\multi_agent_framework\\domains\\dns",

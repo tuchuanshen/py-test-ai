@@ -1,0 +1,17 @@
+# 额外的依赖包，用于处理特定类型的文档
+# 这些依赖是可选的，仅在需要处理特定格式文件时安装
+
+# 处理doc和docx文件所需
+unstructured[docx]
+
+# 处理ppt和pptx文件所需
+unstructured[pptx]
+
+# 处理xlsx文件所需
+unstructured[xlsx]
+
+# 处理图像文件所需
+unstructured[images]
+
+# 处理所有支持的文件类型
+unstructured[all]
