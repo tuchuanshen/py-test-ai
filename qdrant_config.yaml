@@ -1,0 +1,44 @@
+# Qdrant配置文件
+debug: false
+
+log_level: INFO
+
+storage:
+  # Where to store all the data
+  storage_path: ./qdrant_storage
+
+  # Where to store snapshots
+  snapshots_path: ./snapshots
+
+  # If true - point's payload will not be stored in memory.
+  # It will be read from the disk every time it is requested.
+  # This setting saves RAM by (slightly) increasing the response time.
+  # Note: those payload values that are involved in filtering and are indexed - remain in RAM.
+  on_disk_payload: false
+
+service:
+  # Maximum size of POST data in a single request in megabytes
+  max_request_size_mb: 32
+
+  # Number of parallel workers used for serving the api. If 0 - equal to the number of available cores.
+  max_workers: 0
+
+  # Host to bind the service on
+  host: 0.0.0.0
+
+  # HTTP port to bind the service on
+  http_port: 6333
+
+  # gRPC port to bind the service on.
+  grpc_port: 6334
+
+  # Enable CORS headers in REST API
+  enable_cors: true
+
+cluster:
+  # Use `single` for single node deployment, `distributed` for multi-node cluster
+  mode: single
+
+  # 集群配置（单节点模式下可以保持默认）
+  p2p:
+    port: 6335

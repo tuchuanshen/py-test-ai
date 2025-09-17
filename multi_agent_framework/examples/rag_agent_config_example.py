@@ -55,8 +55,8 @@ def main():
 
     while True:
         question = input("请输入问题（输入q退出程序）：")
-        if question.lower().startswith('quit') or question.lower().startswith(
-                'exit'):
+        if question.lower().startswith('q') or question.lower().startswith(
+                'e'):
             print("程序已退出")
             break
         state = {
@@ -71,35 +71,6 @@ def main():
 
         # 输出结果
         #print(f"答案: {result_state.get('answer', '无答案')}")
-
-    # 示例问题
-    questions = ["什么是人工智能？", "请解释一下RAG技术的工作流程", "什么是检索增强生成（RAG）技术？"]
-
-    # 处理问题
-    for question in questions:
-        print(f"\n问题: {question}")
-        state = {"question": question, "messages": []}
-
-        # 处理问题（不指定领域，使用默认领域）
-        result_state = rag_agent.process(state)
-
-        # 输出结果
-        print(f"答案: {result_state.get('answer', '无答案')}")
-
-        # 显示源文档信息
-        sources = result_state.get('sources', [])
-        if sources:
-            print("相关信息来源:")
-            for i, source in enumerate(sources[:2]):  # 只显示前两个来源
-                source_path = source.metadata.get('source', '未知')
-                # 简化路径显示
-                if len(source_path) > 50:
-                    source_path = '...' + source_path[-47:]
-                print(f"  来源 {i+1}: {source_path}")
-
-    persist_dir = rag_manager.persist_directory
-    print(f"\n向量数据库已持久化到: {persist_dir}")
-    print("下次启动时将自动加载已创建的数据库")
 
 
 if __name__ == "__main__":
