@@ -67,10 +67,10 @@ def main():
 
         print(f"使用 {state['domain']}领域 回答 问题: {question}")
         # 处理问题（不指定领域，使用默认领域）
-        #result_state = rag_agent.process(state)
+        result_state = rag_agent.process(state)
 
         # 输出结果
-        #print(f"答案: {result_state.get('answer', '无答案')}")
+        print(f"答案: {result_state}")
 
 
 if __name__ == "__main__":
