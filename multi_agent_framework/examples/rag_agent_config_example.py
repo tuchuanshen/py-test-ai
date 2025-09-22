@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from multi_agent_framework.agents.rag_agent import RAGAgent
 from multi_agent_framework.rag.manager import RAGManager
+from multi_agent_framework.rag.multilingual_rag import MultilingualRAGManager
 from multi_agent_framework.rag.router import HybridRAGRouter
 from langchain_openai import ChatOpenAI
 from wx_agent.local_llm import local_llm_get
@@ -35,7 +36,11 @@ def main():
                                "config.json")
     print(f"正在加载配置文件: {config_path}")
 
-    rag_manager = RAGManager(llm=llm, config_path=config_path)
+    #rag_manager = RAGManager(llm=llm, config_path=config_path)
+    rag_manager = MultilingualRAGManager(llm=llm,
+                                         config_path=config_path,
+                                         in_memory=True,
+                                         offline=True)
 
     # 从配置文件加载所有领域
     print("正在从配置文件加载所有领域...")

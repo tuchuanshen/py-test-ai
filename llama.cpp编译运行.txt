@@ -1,0 +1,37 @@
+“x64 Native Tools Command Prompt for VS 2022”是一个应用程序。这个应用程序是Visual Studio 2022的一部分，它是一个命令行界面（CLI），用于在64位架构下执行与Visual Studio相关的开发任务。
+关于“x64 Native Tools Command Prompt for VS 2022”
+
+    用途：当你需要编译或运行C++程序，或者使用Visual Studio的工具链时，这个命令提示符可以提供一个预配置的环境，确保所有的环境变量和路径都正确设置，以便能够顺利地调用如cl.exe（C/C++编译器）、link.exe（链接器）等工具。
+
+    为什么叫“x64 Native”：这里的“x64”指的是64位架构，“Native”意味着它是为本地64位应用开发设计的，而不是为了生成32位应用或者跨平台应用。
+
+
+cmake .. -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -G "Ninja"  -DCUDA_ARCHITECTURES=89
+
+
+cmake .. `
+  -G "Ninja" `
+  -DCMAKE_BUILD_TYPE=Release `
+  -DGGML_CUDA=ON `
+  -DLLAMA_CURL=OFF `
+  -DCMAKE_CUDA_ARCHITECTURES=89
+  
+
+#针对rtx3060进行编译
+cmake .. -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DGGML_CUDA=ON -DLLAMA_CURL=OFF -DCMAKE_CUDA_ARCHITECTURES=89 -DLLAMA_SERVER=ON
+
+
+cmake ..   -G "Ninja"   -DCMAKE_BUILD_TYPE=Release   -DGGML_CUDA=ON   -DLLAMA_SERVER=ON   -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89"   -DBUILD_SHARED_LIBS=OFF   -DLLAMA_CURL=OFF
+
+
+
+#运行
+D:\tuchuan\tools\llama.cpp\build\bin\llama-server.exe -m D:\tuchuan\tools\multi_lld\qwen2.5-7b-instruct-q4_0.gguf -c 8192 -b 512 --threads 8
+
+D:\tuchuan\tools\llama.cpp\build-cuda-server\bin\llama-server.exe -m D:\tuchuan\tools\multi_lld\qwen2.5-7b-instruct-q4_0.gguf -c 2048 --gpu-layers 20 -b 256 --api-key sk-my-local-key-12345
+
+D:\tuchuan\tools\llama.cpp\build-cuda-server\bin\llama-server.exe -m D:\tuchuan\tools\multi_lld\qwen2.5-7b-instruct-q4_0.gguf --gpu-layers 35 -c 32768 -b 512
+
+D:\tuchuan\tools\llama.cpp\build-cuda-server\bin\llama-server.exe -m D:\tuchuan\tools\multi_lld\qwen2.5-7b-instruct-q4_0.gguf --gpu-layers 35 -c 32768 -b 512 --api-key sk-my-local-key-12345 --jinja
+
+

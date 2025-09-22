@@ -5,7 +5,7 @@
 
 import os
 import json
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, cast
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
@@ -40,7 +40,10 @@ class MultilingualRAGManager(RAGManager):
                  llm=None,
                  config_path: Optional[str] = None,
                  qdrant_host: str = "localhost",
-                 qdrant_port: int = 6333):
+                 qdrant_port: int = 6333,
+                 in_memory: bool = False,
+                 embeddings_model: str = "BAAI/bge-m3",
+                 offline: bool = False):
         """
         初始化多语言RAG管理器
         
@@ -49,19 +52,36 @@ class MultilingualRAGManager(RAGManager):
             config_path: 配置文件路径
             qdrant_host: Qdrant服务器主机地址
             qdrant_port: Qdrant服务器端口
+            in_memory: 是否使用内存模式（不需要启动Qdrant服务端）
+            embeddings_model: 嵌入模型名称
+            offline: 是否使用离线模式
         """
         # 调用父类初始化方法
-        super().__init__(llm, config_path)
+        # 修复类型问题：使用cast将Optional[str]转换为str以满足父类签名要求
+        super().__init__(llm, cast(str, config_path))
 
         # 初始化Qdrant客户端
-        self.qdrant_client = QdrantClient(host=qdrant_host, port=qdrant_port)
+        if in_memory:
+            # 使用内存模式，不需要启动Qdrant服务端
+            self.qdrant_client = QdrantClient(":memory:")
+            logger.info("使用Qdrant内存模式")
+        else:
+            # 使用远程服务模式
+            self.qdrant_client = QdrantClient(host=qdrant_host,
+                                              port=qdrant_port)
+            logger.info(f"连接到Qdrant服务: {qdrant_host}:{qdrant_port}")
+
+        # 初始化嵌入模型
+        model_kwargs = {'device': 'cpu'}  # type: Dict[str, Any]
+        if offline:
+            model_kwargs['local_files_only'] = True
 
         # 使用bge-m3作为嵌入模型，支持多语言
         self.embeddings = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-m3",
-            model_kwargs={'device': 'cpu'},  # 根据需要改为'cuda'
+            model_name=embeddings_model,
+            model_kwargs=model_kwargs,
             encode_kwargs={'normalize_embeddings': True})
-
+        logger.info(f"使用嵌入模型: {embeddings_model}")
         logger.info("多语言RAG管理器初始化完成")
 
     def _create_rag_chain(self, path: str, domain_id: str) -> RetrievalQA:
@@ -168,7 +188,7 @@ class MultilingualRAGManager(RAGManager):
 
     def query(self,
               question: str,
-              domain: str = None,
+              domain: Optional[str] = None,
               filter: Optional[Dict[str, Any]] = None,
               **kwargs) -> Dict[str, Any]:
         """
